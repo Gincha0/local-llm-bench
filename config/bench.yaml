@@ -3,7 +3,7 @@
 schema_version: 1
 
 run:
-  repetitions: 5          # measured requests per (model, regime)
+  repetitions: 10          # measured requests per (model, regime)
   warmup: 1               # discarded first request: absorbs model load and cold caches
   max_tokens: 256         # generation cap, identical for every model
   temperature: 0.0        # greedy decoding: comparable, repeatable outputs for the rubric
