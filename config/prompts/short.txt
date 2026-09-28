@@ -1,0 +1,1 @@
+In two sentences, explain what a network switch does and how it differs from a router.

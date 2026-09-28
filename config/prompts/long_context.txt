@@ -1,0 +1,2 @@
+TODO (Thu 1 Oct): ~4k tokens of public technical text, followed by the instruction
+"Summarise the document above in five bullet points."

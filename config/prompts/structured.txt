@@ -1,0 +1,2 @@
+TODO (Thu 1 Oct): a short device log excerpt, followed by the instruction
+"Return JSON with keys: device, interface, event, timestamp. No other text."

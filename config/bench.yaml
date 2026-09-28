@@ -1,0 +1,84 @@
+# One file drives a run. Adding a model, tier or regime = one entry here, no code change.
+# Unknown keys are rejected (typos fail loudly). Prompt paths are relative to this file.
+schema_version: 1
+
+run:
+  repetitions: 5          # measured requests per (model, regime)
+  warmup: 1               # discarded first request: absorbs model load and cold caches
+  max_tokens: 256         # generation cap, identical for every model
+  temperature: 0.0        # greedy decoding: comparable, repeatable outputs for the rubric
+  seed: 42
+  think: false            # reasoning models (qwen3) think by default; off, and recorded per result
+  timeout_s: 600          # a request slower than this is recorded as an error, not waited on
+  sustained_minutes: 10   # throttle test length (Fri 2 Oct)
+  results_dir: results
+
+# One entry = one concrete artifact you can `ollama pull`. Same model at two quants = two entries.
+# Placeholder until the shortlist lands (3-5 models, ~1B / 3-4B / 7-8B / ~14B).
+models:
+  - id: qwen3-4b-q4
+    family: qwen3
+    params_b: 4.0
+    quant: Q4_K_M
+    ollama_tag: qwen3:4b-q4_K_M
+  - id: qwen3-4b-q8
+    family: qwen3
+    params_b: 4.0
+    quant: Q8_0
+    ollama_tag: qwen3:4b-q8_0
+
+# The harness runs ON the tier and talks to that machine's local Ollama.
+# Pick the tier at run time: `llm-bench plan --tier T4`.
+tiers:
+  - id: T1
+    name: desktop-gpu
+    os: linux
+    arch: x86_64
+    gpu_offload: true
+    memory_gb: 32
+    vram_gb: 12
+    notes: Ryzen 7 9800X3D + RTX 4070 12 GB, CachyOS. The ceiling.
+  - id: T2
+    name: desktop-cpu
+    os: linux
+    arch: x86_64
+    gpu_offload: false      # same box, all layers on CPU: isolates the GPU offload benefit
+    memory_gb: 32
+    notes: Same machine as T1, GPU disabled for inference.
+  - id: T3
+    name: laptop-gpu
+    os: windows
+    arch: x86_64
+    gpu_offload: true
+    memory_gb: 24
+    vram_gb: 8
+    notes: Lenovo LOQ 15, Ryzen 7 7435HS + RTX 4060 8 GB. Windows only; the thermal story.
+  - id: T4
+    name: vps-arm
+    os: linux
+    arch: arm64
+    gpu_offload: false
+    memory_gb: 4
+    notes: Hetzner CAX11, 2 vCPU shared. Non-x86, modest, no GPU. Shared host = noisier.
+  - id: T5
+    name: vps-x86-thin
+    os: linux
+    arch: x86_64
+    gpu_offload: false
+    memory_gb: 4
+    notes: Hetzner CX23, 2 vCPU shared. Where models stop fitting; document the OOM boundary.
+
+regimes:
+  - id: short
+    description: Short prompt, short answer. Interactive latency; TTFT dominates.
+    prompt_file: prompts/short.txt
+    num_ctx: 2048
+  - id: long_context
+    description: ~4k-token document, summarise it. Prompt-eval throughput and KV-cache memory.
+    prompt_file: prompts/long_context.txt
+    num_ctx: 8192
+  - id: structured
+    description: Extract fields as JSON. Format adherence under a constrained output.
+    prompt_file: prompts/structured.txt
+    num_ctx: 2048
+    json_output: true
