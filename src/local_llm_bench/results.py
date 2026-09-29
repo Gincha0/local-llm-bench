@@ -12,6 +12,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+NS_PER_S = 1_000_000_000
+
 
 class Measurement(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -25,16 +27,16 @@ class Measurement(BaseModel):
     think: bool
     started_at: datetime
 
-    # client-side wall clock (time.perf_counter)
-    ttft_s: float | None = None
-    wall_s: float | None = None
+    # client-side (time.perf_counter_ns() measured from request send)
+    ttft_ns: int | None = None
+    total_ns: int | None = None
 
-    # server-reported (Ollama returns nanoseconds; converted to seconds on write)
-    load_s: float | None = None
+    # server-reported (Ollama returns nanoseconds; store them as such)
+    load_ns: int | None = None
     prompt_tokens: int | None = None
-    prompt_eval_s: float | None = None
+    prompt_eval_ns: int | None = None
     gen_tokens: int | None = None
-    gen_s: float | None = None
+    gen_ns: int | None = None
 
     # memory; None where the tier cannot measure it
     peak_rss_mb: float | None = None
@@ -44,12 +46,12 @@ class Measurement(BaseModel):
 
     @property
     def prompt_tps(self) -> float | None:
-        if self.prompt_tokens is None or not self.prompt_eval_s:
+        if self.prompt_tokens is None or not self.prompt_eval_ns:
             return None
-        return self.prompt_tokens / self.prompt_eval_s
+        return self.prompt_tokens * NS_PER_S / self.prompt_eval_ns
 
     @property
     def gen_tps(self) -> float | None:
-        if self.gen_tokens is None or not self.gen_s:
+        if self.gen_tokens is None or not self.gen_ns:
             return None
-        return self.gen_tokens / self.gen_s
+        return self.gen_tokens * NS_PER_S / self.gen_ns
