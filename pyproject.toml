@@ -5,6 +5,7 @@ description = "Benchmark local LLMs across device tiers: throughput, latency, me
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "httpx>=0.28.1",
     "pydantic>=2.8",
     "pyyaml>=6.0",
 ]
