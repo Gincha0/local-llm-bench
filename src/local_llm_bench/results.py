@@ -29,6 +29,7 @@ class Measurement(BaseModel):
 
     # client-side (time.perf_counter_ns() measured from request send)
     ttft_ns: int | None = None
+    first_answer_ns: int | None = None
     total_ns: int | None = None
 
     # server-reported (Ollama returns nanoseconds; store them as such)
