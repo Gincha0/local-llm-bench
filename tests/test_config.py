@@ -59,3 +59,13 @@ def test_plan_counts_requests() -> None:
 def test_unknown_tier_names_the_known_ones() -> None:
     with pytest.raises(KeyError, match="T1"):
         load_config(CONFIG).tier("T9")
+
+
+def test_unknown_model_names_the_known_ones() -> None:
+    with pytest.raises(KeyError, match="qwen3-4b-q4"):
+        load_config(CONFIG).model("llama-404")
+
+
+def test_unknown_regime_names_the_known_ones() -> None:
+    with pytest.raises(KeyError, match="short"):
+        load_config(CONFIG).regime("medium")

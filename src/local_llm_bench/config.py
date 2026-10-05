@@ -80,6 +80,18 @@ class BenchConfig(Strict):
                 return t
         raise KeyError(f"unknown tier {tier_id!r}; known: {[t.id for t in self.tiers]}")
 
+    def model(self, model_id: str) -> Model:
+        for m in self.models:
+            if m.id == model_id:
+                return m
+        raise KeyError(f"unknown model {model_id!r}; known: {[m.id for m in self.models]}")
+
+    def regime(self, regime_id: str) -> Regime:
+        for r in self.regimes:
+            if r.id == regime_id:
+                return r
+        raise KeyError(f"unknown regime {regime_id!r}; known: {[r.id for r in self.regimes]}")
+
 
 def load_config(path: Path) -> BenchConfig:
     """Load and validate a config.

@@ -9,7 +9,7 @@ run:
   temperature: 0.0        # greedy decoding: comparable, repeatable outputs for the rubric
   seed: 42
   think: false            # reasoning models (qwen3) think by default; off, and recorded per result
-  timeout_s: 600          # a request slower than this is recorded as an error, not waited on
+  timeout_s: 600          # no data from Ollama for this long = recorded as an error (per read)
   sustained_minutes: 10   # throttle test length (Fri 2 Oct)
   results_dir: results
 
