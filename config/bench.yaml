@@ -59,14 +59,7 @@ tiers:
     arch: arm64
     gpu_offload: false
     memory_gb: 4
-    notes: Hetzner CAX11, 2 vCPU shared. Non-x86, modest, no GPU. Shared host = noisier.
-  - id: T5
-    name: vps-x86-thin
-    os: linux
-    arch: x86_64
-    gpu_offload: false
-    memory_gb: 4
-    notes: Hetzner CX23, 2 vCPU shared. Where models stop fitting; document the OOM boundary.
+    notes: Hetzner CAX11, 2 vCPU shared. Non-x86, no GPU, 4 GB; where models stop fitting.
 
 regimes:
   - id: short

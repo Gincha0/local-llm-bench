@@ -19,7 +19,7 @@ def raw_config() -> dict[str, Any]:
 
 def test_shipped_config_is_valid() -> None:
     config = load_config(CONFIG)
-    assert [t.id for t in config.tiers] == ["T1", "T2", "T3", "T4", "T5"]
+    assert [t.id for t in config.tiers] == ["T1", "T2", "T3", "T4"]
 
 
 def test_unknown_key_is_rejected() -> None:

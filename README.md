@@ -2,7 +2,7 @@
 
 Which model class fits which device tier, and where is the cliff?
 
-A benchmark harness that runs the same local LLMs and the same prompt suite on five
+A benchmark harness that runs the same local LLMs and the same prompt suite on four
 hardware tiers, from a desktop GPU down to a 4 GB ARM VPS, and measures throughput,
 latency and memory. Failed runs (out of memory, timeouts) are recorded as results, not
 crashes: the point where a model stops fitting is one of the findings.
@@ -17,8 +17,7 @@ crashes: the point where a model stops fitting is one of the findings.
 | T1 | Ryzen 7 9800X3D + RTX 4070 12 GB, 32 GB | Linux / x86_64 | The ceiling |
 | T2 | Same machine, CPU only | Linux / x86_64 | The GPU offload benefit, isolated |
 | T3 | Laptop, Ryzen 7 7435HS + RTX 4060 8 GB, 24 GB | Windows / x86_64 | Smaller VRAM and thermal limits |
-| T4 | Hetzner CAX11, 2 vCPU, 4 GB | Linux / arm64 | Non-x86, modest, no GPU |
-| T5 | Hetzner CX23, 2 vCPU, 4 GB | Linux / x86_64 | Where models stop fitting |
+| T4 | Hetzner CAX11, 2 vCPU, 4 GB | Linux / arm64 | Non-x86, no GPU; where models stop fitting |
 
 ## What is measured
 
