@@ -1,2 +1,87 @@
-TODO (Thu 1 Oct): ~4k tokens of public technical text, followed by the instruction
-"Summarise the document above in five bullet points."
+Digital Diagnostics and Link Budgets for Pluggable Optical Transceivers
+
+1. Why pluggable optics need monitoring
+
+Most optical links in enterprise, campus and service-provider networks are built from pluggable transceivers: small modules that slide into a port on a switch, router or network card and convert electrical signals to light and back. The common form factors are SFP and SFP+ for 1 and 10 gigabit links, SFP28 for 25 gigabit, QSFP28 for 100 gigabit, and QSFP-DD or OSFP for 400 gigabit and above. A single rack can hold hundreds of them, and each one contains a laser, a photodiode, driver electronics and a small memory chip.
+
+Because the module is a separate part from the host, the host cannot assume anything about it. It has to ask the module what it is, what it can do and how it is doing right now. The answer to the first two questions is the identification data stored in the module's memory. The answer to the third is digital diagnostic monitoring, usually shortened to DDM or DOM. Without diagnostics, an operator only knows whether a link is up or down. With diagnostics, the operator can see a link degrading days or weeks before it fails, and can tell a dirty connector from a dying laser without leaving the desk.
+
+2. The memory map: where the information lives
+
+An SFP-family module exposes its information over a two-wire serial interface, electrically the same kind of bus used for small sensors on a motherboard. The host reads the module at two addresses. The first, conventionally written as A0h, holds the identification data defined by the SFF-8472 specification: the transceiver type, the connector type, the nominal bit rate, the supported link lengths for each fiber type, the laser wavelength, the vendor name, the vendor part number, the serial number and the date code. The same block contains a byte that tells the host whether diagnostics are implemented at all and how they are calibrated.
+
+The second address, A2h, holds the diagnostics themselves. Its first forty bytes are thresholds: for every monitored value there is a high alarm, a low alarm, a high warning and a low warning. Further into the block are the live readings, refreshed by the module's own controller, followed by status and flag bits that latch when a threshold is crossed. The host does not have to compare values to thresholds itself; it can read the flag bits and react to them.
+
+Larger modules use a different layout. QSFP28 modules follow SFF-8636, which places everything behind a single address and uses pages to fit more data into the same window: the host writes a page number and then reads the selected page. Newer modules for 400 gigabit and beyond use the Common Management Interface Specification, CMIS, which keeps the paging idea but adds a state machine for powering up and configuring the module, support for several independent data paths inside one module, and room for features such as firmware upgrades. The principles are the same across all three: identification first, then thresholds, then live values and flags.
+
+3. The five values every module reports
+
+Digital diagnostics report five real-time values. Each has a fixed binary encoding, so that any host can interpret any compliant module.
+
+Temperature is reported as a signed sixteen-bit number in units of one two-hundred-fifty-sixth of a degree Celsius. It is measured inside the module, near the laser and the electronics, not at the faceplate. Commercial-grade modules are typically specified for a case temperature of 0 to 70 degrees Celsius, and industrial-grade modules for minus 40 to 85 degrees.
+
+Supply voltage is reported in units of one hundred microvolts. Modules run from a nominal 3.3 volt supply, and the thresholds usually sit a few percent either side of it. A voltage reading outside its window points at the host's power supply or at a poor contact in the cage, not at the optics.
+
+Transmitter bias current is reported in units of two microamperes. It is the current the driver pushes through the laser to produce the required light output. A laser that is ageing becomes less efficient, so the controller raises the bias to keep the output power constant. A bias current that climbs slowly over months is therefore an early sign of wear, even while the transmitted power still looks perfect.
+
+Transmitted optical power is reported in units of one tenth of a microwatt. It is the light the module launches into the fiber.
+
+Received optical power uses the same unit and is the light arriving from the far end. Depending on a flag in the identification block, it is either average power or optical modulation amplitude; most modules report average power.
+
+Optical power is almost always discussed in decibels relative to one milliwatt, written dBm. The conversion is ten times the base-ten logarithm of the power in milliwatts. One milliwatt is 0 dBm, half a milliwatt is about minus 3 dBm, a tenth of a milliwatt is minus 10 dBm, and one hundredth of a milliwatt is minus 20 dBm. Working in decibels turns multiplication into addition, which is exactly what makes link budgets easy to calculate.
+
+4. Calibration
+
+The identification block states whether the module is internally or externally calibrated. Internally calibrated modules report values that are ready to use: the host only applies the unit conversion above. Externally calibrated modules report raw values and provide calibration constants, slopes and offsets, which the host must apply itself. Nearly all modules made today are internally calibrated, but a host that ignores the calibration flag will show wrong readings on the rare module that is not, and the error can be large enough to trigger false alarms or hide real ones.
+
+Calibration accuracy matters when comparing readings across vendors. The specification allows a tolerance of a few decibels on optical power readings, so two healthy modules on the same link can disagree. A single reading is a rough indication; a change in a reading over time on the same module is far more informative.
+
+5. The link budget
+
+Every optical link has to deliver enough light to the receiver for it to recover the signal with an acceptable error rate, and not so much that it overloads the receiver. The link budget is the calculation that checks both conditions before the link is built.
+
+The available power budget is the difference between the minimum transmit power of the module and the sensitivity of the receiver, both taken from the datasheet as worst-case values. Consider a module whose datasheet lists a minimum average transmit power of minus 8.2 dBm and a receiver sensitivity of minus 14.4 dBm. The power budget is 6.2 decibels. Everything between the two ends of the link has to cost less than that.
+
+The losses come from several places. Fiber attenuates light in proportion to its length. Single-mode fiber loses roughly 0.35 decibels per kilometre at 1310 nanometres and around 0.25 decibels per kilometre at 1550 nanometres; multimode fiber at 850 nanometres loses about 3 decibels per kilometre. Every mated connector pair costs between a few tenths of a decibel for a clean, high-quality connection and around 0.75 decibels at the usual worst-case allowance. Every fusion splice costs around 0.1 decibels. Passive components add their own insertion loss: a wavelength-division multiplexer and demultiplexer pair can easily cost 3 to 5 decibels, and an optical splitter costs more still.
+
+On top of the losses, a designer reserves a margin, commonly 3 decibels, for ageing, temperature, repairs that add splices, and connectors that will not stay perfectly clean.
+
+Take a 10 kilometre single-mode link at 1310 nanometres with four connector pairs and two splices. Fiber loss is 3.5 decibels, connectors 2 decibels at half a decibel each, splices 0.2 decibels: 5.7 decibels in total. With a 6.2 decibel budget the link works, but with only half a decibel to spare it does not meet a 3 decibel margin. The correct response is to reduce losses, for example by removing a patch panel, or to choose a module with a larger budget.
+
+6. Too much light is also a fault
+
+The receiver has a maximum input power as well as a minimum. Long-reach modules designed for 40 or 80 kilometres launch a lot of power and use sensitive receivers. Connect two of them with a short patch cord in the same rack and the receiver is driven into overload: the link may come up and then show errors, or not come up at all, and in the worst case the photodiode can be damaged. The fix is a fixed optical attenuator that removes the excess, sized so that the received power lands comfortably between sensitivity and overload. The diagnostics make this case easy to spot: received power reads above the high warning threshold while every other value looks normal.
+
+7. Wavelength-division multiplexing
+
+Wavelength-division multiplexing carries several links over one fiber pair by giving each link its own wavelength. Coarse WDM uses a grid of eighteen wavelengths spaced 20 nanometres apart, from 1271 to 1611 nanometres, defined in ITU-T G.694.2. The wide spacing tolerates lasers that drift with temperature, so the modules are relatively inexpensive and need no cooling. Dense WDM packs channels far closer together on a frequency grid defined in ITU-T G.694.1, typically 100 or 50 gigahertz apart around 1550 nanometres, and needs temperature-stabilised lasers to stay on its channel.
+
+For the link budget, WDM changes two things. The multiplexer and demultiplexer add insertion loss, which must be subtracted from the budget on every channel. And attenuation differs from channel to channel because fiber loss depends on wavelength: on coarse WDM the shortest wavelengths suffer noticeably more loss than the channels around 1550 nanometres, so the worst channel, not the average one, decides whether the design works. Each module's diagnostics report the power of its own channel only, which makes it straightforward to find the one channel that is out of budget.
+
+8. Thermal behaviour
+
+Heat is the most common enemy of pluggable optics. A module dissipates anywhere from under one watt for a short-reach SFP to more than ten watts for a 400 gigabit coherent module, and it sits in a metal cage in a densely packed faceplate. If the host's airflow does not reach the module, its internal temperature rises. As the laser heats up, its efficiency drops; the controller compensates with more bias current, which produces more heat. A module that runs close to its upper temperature limit ages faster, and a module operated beyond its rated range may shut down its transmitter to protect itself.
+
+Thermal problems show a recognisable pattern in the diagnostics: temperature high, bias current elevated, transmit power still normal or slowly falling, and often a correlation with the time of day or with the load on neighbouring equipment. The remedy is in the host and the rack, not in the module: blanking panels so that cold air is not short-circuited, a fan profile that matches the optics installed, an industrial-temperature module where the environment really is hot, or spreading the hottest modules across the faceplate instead of grouping them.
+
+9. Identification and compatibility
+
+Hosts read the identification block when a module is inserted, and many use it to decide whether to accept the module. Some platforms check that the vendor name or part number matches a list of approved parts and disable the port, or log a warning, when it does not. Third-party modules therefore carry identification data written to match what a particular host expects. This is often called coding. A module with correct optics and incorrect coding will not work in a strict host, while the same module recoded for that host works normally. When a module is rejected, the first things to check are the identification fields, the transceiver compliance codes and the checksum bytes that protect them; a wrong checksum alone is enough for some hosts to refuse a module.
+
+10. Using diagnostics to find faults
+
+Diagnostics become most useful when they are read regularly and stored, so that each value can be compared with its own history and with the module at the other end of the link.
+
+Low received power with normal transmit power at the far end means the light is being lost on the way. The usual causes, in order of likelihood, are dirty connectors, a tight bend in a patch cord, a damaged cable and a link that is simply longer than designed. Cleaning and inspecting the connectors fixes a surprising share of these cases, and should be done before anything is replaced.
+
+Low transmit power together with high bias current means the laser itself is wearing out, and the module should be replaced at the next maintenance window rather than when the link finally drops.
+
+Received power that is fine while the link still reports errors points away from power and towards the signal itself: the wrong fiber type for the module, dispersion on a long link, a speed or forward-error-correction mismatch between the two ends, or a fault in the host's electrical interface.
+
+High temperature with everything else normal is a cooling problem, as described above, and usually affects several neighbouring modules at the same time.
+
+Received power above the high warning threshold on a short link is overload, fixed with an attenuator.
+
+The common thread is that no single value diagnoses a fault on its own. The pattern across the five values, at both ends of the link and over time, is what turns diagnostic monitoring from a curiosity into the main tool for keeping optical links healthy.
+
+Summarise the document above in five bullet points.

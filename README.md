@@ -36,7 +36,7 @@ Raw durations and token counts are stored; rates are derived at report time.
 | Regime | What it stresses |
 |---|---|
 | `short` | Interactive latency: TTFT dominates |
-| `long_context` | Prompt-eval throughput and KV-cache memory (~4k tokens in) |
+| `long_context` | Prompt-eval throughput and KV-cache memory (~3k tokens in) |
 | `structured` | JSON output: format adherence under constraint |
 
 ## Results

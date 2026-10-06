@@ -1,2 +1,9 @@
-TODO (Thu 1 Oct): a short device log excerpt, followed by the instruction
-"Return JSON with keys: device, interface, event, timestamp. No other text."
+Below is an excerpt from a switch log.
+
+2026-09-14T08:12:03Z sw-core-02 kernel: sfp-sfpplus3: module inserted, part SFP-10G-LR
+2026-09-14T08:12:04Z sw-core-02 interface: sfp-sfpplus3 link up (10G, full duplex)
+2026-09-14T09:47:31Z sw-core-02 interface: sfp-sfpplus3 rx power low warning (-14.9 dBm)
+2026-09-14T09:47:58Z sw-core-02 interface: sfp-sfpplus3 link down
+2026-09-14T09:48:10Z sw-core-02 interface: ether1 link up (1G, full duplex)
+
+Find the link-down event. Return JSON with exactly these keys: device, interface, event, timestamp. No other text.

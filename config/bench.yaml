@@ -97,7 +97,7 @@ regimes:
     prompt_file: prompts/short.txt
     num_ctx: 2048
   - id: long_context
-    description: ~4k-token document, summarise it. Prompt-eval throughput and KV-cache memory.
+    description: ~3k-token technical document, summarise it. Prompt-eval throughput and KV-cache memory.
     prompt_file: prompts/long_context.txt
     num_ctx: 8192
   - id: structured
