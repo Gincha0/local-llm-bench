@@ -14,8 +14,28 @@ run:
   results_dir: results
 
 # One entry = one concrete artifact you can `ollama pull`. Same model at two quants = two entries.
-# Placeholder until the shortlist lands (3-5 models, ~1B / 3-4B / 7-8B / ~14B).
+# One family at four sizes, all dense (no mixture of experts): size and quantisation are the only variables.
 models:
+  - id: qwen3-0.6b-q4
+    family: qwen3
+    params_b: 0.6
+    quant: Q4_K_M
+    ollama_tag: qwen3:0.6b-q4_K_M
+  - id: qwen3-0.6b-q8
+    family: qwen3
+    params_b: 0.6
+    quant: Q8_0
+    ollama_tag: qwen3:0.6b-q8_0
+  - id: qwen3-1.7b-q4
+    family: qwen3
+    params_b: 1.7
+    quant: Q4_K_M
+    ollama_tag: qwen3:1.7b-q4_K_M
+  - id: qwen3-1.7b-q8
+    family: qwen3
+    params_b: 1.7
+    quant: Q8_0
+    ollama_tag: qwen3:1.7b-q8_0
   - id: qwen3-4b-q4
     family: qwen3
     params_b: 4.0
@@ -26,6 +46,16 @@ models:
     params_b: 4.0
     quant: Q8_0
     ollama_tag: qwen3:4b-q8_0
+  - id: qwen3-8b-q4
+    family: qwen3
+    params_b: 8.0
+    quant: Q4_K_M
+    ollama_tag: qwen3:8b-q4_K_M
+  - id: qwen3-8b-q8
+    family: qwen3
+    params_b: 8.0
+    quant: Q8_0
+    ollama_tag: qwen3:8b-q8_0
 
 # The harness runs ON the tier and talks to that machine's local Ollama.
 # Pick the tier at run time: `llm-bench plan --tier T4`.
