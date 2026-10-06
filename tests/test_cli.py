@@ -1,10 +1,12 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 
-from local_llm_bench.cli import probe
+from local_llm_bench.cli import probe, progress
 from local_llm_bench.config import load_config
+from local_llm_bench.results import Measurement
 
 CONFIG = load_config(Path(__file__).parent.parent / "config" / "bench.yaml")
 
@@ -34,3 +36,18 @@ def test_probe_prints_timings_rates_and_answer() -> None:
     assert "20 tokens (0 cached), 2000.0 tok/s" in out
     assert "100 tokens, 50.0 tok/s" in out
     assert out.endswith("A switch forwards frames.")
+
+
+def test_progress_line_shows_errors_instead_of_numbers() -> None:
+    failed = Measurement(
+        tier_id="T4",
+        model_id="qwen3-8b-q8",
+        regime_id="short",
+        rep=0,
+        warmup=True,
+        think=False,
+        started_at=datetime(2026, 10, 5, tzinfo=UTC),
+        error="OllamaError: model requires more system memory",
+    )
+    line = progress(failed)
+    assert "warmup" in line and "ERROR OllamaError" in line and "ttft" not in line

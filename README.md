@@ -7,7 +7,7 @@ hardware tiers, from a desktop GPU down to a 4 GB ARM VPS, and measures throughp
 latency and memory. Failed runs (out of memory, timeouts) are recorded as results, not
 crashes: the point where a model stops fitting is one of the findings.
 
-> **Status:** in progress. Config schema and project layout done; measurement loop next.
+> **Status:** in progress. Measurement loop and runner done; first runs next.
 > Results below are placeholders until real runs land.
 
 ## Device tiers
@@ -50,11 +50,14 @@ _Pending: warmup policy, repetitions, decoding settings, thinking on/off, limita
 
 ## Running it
 
-Requires [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com/).
+Requires [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com/), with every
+`ollama_tag` in `config/bench.yaml` pulled on the machine being measured.
 
 ```sh
 uv sync
-uv run llm-bench plan --tier T1     # validate config, print the run matrix
+uv run llm-bench plan --tier T1                        # validate config, print the run matrix
+uv run llm-bench probe --tier T1 --model qwen3-4b-q4   # one timed request: smoke test
+uv run llm-bench run --tier T1                         # everything -> results/T1-<time>.jsonl
 uv run pytest && uv run ruff check && uv run mypy src tests
 ```
 

@@ -1,11 +1,15 @@
-"""Turn config entries into Ollama requests, and Ollama's answers into Measurements."""
+"""Run the benchmark on one tier: config entries in, one Measurement per request out."""
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
-from local_llm_bench.config import Model, Regime, RunSettings, Tier
-from local_llm_bench.measure import StreamResult
+import httpx
+
+from local_llm_bench.config import BenchConfig, Model, Regime, RunSettings, Tier
+from local_llm_bench.measure import OllamaError, StreamResult, stream_generate
 from local_llm_bench.results import Measurement
 
 
@@ -50,3 +54,41 @@ def to_measurement(base: Measurement, result: StreamResult) -> Measurement:
             "answer": result.answer,
         }
     )
+
+
+def tagged(prompt: str, request_no: int) -> str:
+    return f"Run {request_no:02d}.\n{prompt}"
+
+
+def run_tier(config: BenchConfig, tier: Tier, client: httpx.Client) -> Iterator[Measurement]:
+    run = config.run
+    for model in config.models:
+        for regime in config.regimes:
+            prompt = regime.prompt_file.read_text(encoding="utf-8")
+            for request_no in range(run.warmup + run.repetitions):
+                base = Measurement(
+                    tier_id=tier.id,
+                    model_id=model.id,
+                    regime_id=regime.id,
+                    rep=request_no,
+                    warmup=request_no < run.warmup,
+                    think=run.think,
+                    started_at=datetime.now(UTC),
+                )
+                payload = build_payload(model, regime, run, tier, tagged(prompt, request_no))
+                try:
+                    result = stream_generate(client, payload)
+                except (httpx.HTTPError, OllamaError) as error:
+                    yield base.model_copy(update={"error": f"{type(error).__name__}: {error}"})
+                    break
+                yield to_measurement(base, result)
+        unload(client, model)
+
+
+def unload(client: httpx.Client, model: Model) -> None:
+    """Free the model's memory so the next model starts on an empty machine.
+
+    The response is not checked: a model that never loaded (out of memory) has nothing
+    to free, and that must not stop the rest of the run.
+    """
+    client.post("/api/generate", json={"model": model.ollama_tag, "keep_alive": 0})
