@@ -48,7 +48,6 @@ def probe(run: RunSettings, tier: Tier, model: Model, regime: Regime, client: ht
     prompt = regime.prompt_file.read_text(encoding="utf-8")
     result = stream_generate(client, build_payload(model, regime, run, tier, prompt))
     m = to_measurement(base, result)
-    cached = result.final.get("prompt_eval_cached_count", 0)
     return "\n".join(
         [
             f"{tier.id} / {model.id} / {regime.id}",
@@ -56,7 +55,8 @@ def probe(run: RunSettings, tier: Tier, model: Model, regime: Regime, client: ht
             f"first answer  {_ms(m.first_answer_ns)}",
             f"total         {_ms(m.total_ns)}",
             f"model load    {_ms(m.load_ns)}",
-            f"prompt eval   {m.prompt_tokens} tokens ({cached} cached), {_rate(m.prompt_tps)}",
+            f"prompt eval   {m.prompt_tokens} tokens ({m.prompt_cached_tokens} cached), "
+            f"{_rate(m.prompt_tps)}",
             f"generation    {m.gen_tokens} tokens, {_rate(m.gen_tps)}",
             "",
             result.answer.strip(),

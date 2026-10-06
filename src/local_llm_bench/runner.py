@@ -43,8 +43,10 @@ def to_measurement(base: Measurement, result: StreamResult) -> Measurement:
             "total_ns": result.total_ns,
             "load_ns": final.get("load_duration"),
             "prompt_tokens": final.get("prompt_eval_count"),
+            "prompt_cached_tokens": final.get("prompt_eval_cached_count"),
             "prompt_eval_ns": final.get("prompt_eval_duration"),
             "gen_tokens": final.get("eval_count"),
             "gen_ns": final.get("eval_duration"),
+            "answer": result.answer,
         }
     )

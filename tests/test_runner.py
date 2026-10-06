@@ -54,6 +54,7 @@ def test_ollama_counters_map_to_measurement_fields() -> None:
         final={
             "load_duration": 1,
             "prompt_eval_count": 2,
+            "prompt_eval_cached_count": 0,
             "prompt_eval_duration": 3,
             "eval_count": 100,
             "eval_duration": 2_000_000_000,
@@ -72,4 +73,6 @@ def test_ollama_counters_map_to_measurement_fields() -> None:
     assert m.model_id == "qwen3-4b-q4"
     assert (m.ttft_ns, m.first_answer_ns, m.total_ns) == (10, 20, 30)
     assert (m.load_ns, m.prompt_tokens, m.prompt_eval_ns) == (1, 2, 3)
+    assert m.prompt_cached_tokens == 0
+    assert m.answer == "Hi"
     assert m.gen_tps == pytest.approx(50.0)
