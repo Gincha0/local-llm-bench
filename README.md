@@ -32,6 +32,9 @@ Per model, per tier, per prompt regime:
 - **Output quality**: small fixed rubric, stated below
 
 Raw durations and token counts are stored; rates are derived at report time.
+Every run also writes `<tier>-<time>.env.json` next to its results: OS, CPU, RAM,
+GPU and driver, Ollama version, and the harness commit, flagged if there were
+uncommitted changes.
 
 ## Prompt regimes
 
@@ -59,7 +62,7 @@ Requires [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com/), wit
 uv sync
 uv run llm-bench plan --tier T1                        # validate config, print the run matrix
 uv run llm-bench probe --tier T1 --model qwen3-4b-q4   # one timed request: smoke test
-uv run llm-bench run --tier T1                         # everything -> results/T1-<time>.jsonl
+uv run llm-bench run --tier T1                         # everything -> results/T1-<time>.jsonl + .env.json
 uv run pytest && uv run ruff check && uv run mypy src tests
 ```
 

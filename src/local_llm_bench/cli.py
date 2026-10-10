@@ -3,7 +3,8 @@
 `plan` validates the config and shows what a run would do. `probe` sends one timed request
 to the tier's Ollama and prints what was measured: a smoke test before a full run. `run`
 benchmarks every model and regime on one tier and appends each result to a JSONL file as
-it arrives, so an interrupted run keeps everything measured so far.
+it arrives, so an interrupted run keeps everything measured so far. Next to it goes an
+.env.json file: what machine, software and commit produced those results.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from pathlib import Path
 import httpx
 
 from local_llm_bench.config import BenchConfig, Model, Regime, RunSettings, Tier, load_config
+from local_llm_bench.environment import capture
 from local_llm_bench.measure import stream_generate
 from local_llm_bench.results import Measurement
 from local_llm_bench.runner import add_memory, build_payload, run_tier, to_measurement
@@ -117,14 +119,20 @@ def main(argv: list[str] | None = None) -> None:
             print(probe(config.run, tier, model, regime, client))
     elif args.command == "run":
         tier = config.tier(args.tier)
-        out = config.run.results_dir / f"{tier.id}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.jsonl"
+        started = datetime.now(UTC)
+        out = config.run.results_dir / f"{tier.id}-{started:%Y%m%dT%H%M%SZ}.jsonl"
         out.parent.mkdir(parents=True, exist_ok=True)
         with (
             httpx.Client(base_url=tier.endpoint, timeout=config.run.timeout_s) as client,
             out.open("a", encoding="utf-8") as results,
         ):
+            env = capture(client, tier.id, started)
+            env_json = env.model_dump_json(indent=2) + "\n"
+            out.with_suffix(".env.json").write_text(env_json, encoding="utf-8")
+            if env.git_dirty:
+                print("warning: uncommitted changes, so these results match no commit")
             for m in run_tier(config, tier, client):
                 results.write(m.model_dump_json() + "\n")
                 results.flush()
                 print(progress(m))
-        print(f"results: {out}")
+        print(f"results: {out} (+ {out.with_suffix('.env.json').name})")
