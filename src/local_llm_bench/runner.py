@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -11,6 +13,8 @@ import httpx
 from local_llm_bench.config import BenchConfig, Model, Regime, RunSettings, Tier
 from local_llm_bench.measure import OllamaError, StreamResult, stream_generate
 from local_llm_bench.results import Measurement
+
+SERVER_RESTART_ATTEMPTS = 60  # one poll per second: how long systemd gets to restart Ollama
 
 
 def build_payload(
@@ -80,6 +84,8 @@ def run_tier(config: BenchConfig, tier: Tier, client: httpx.Client) -> Iterator[
                     result = stream_generate(client, payload)
                 except (httpx.HTTPError, OllamaError) as error:
                     yield base.model_copy(update={"error": f"{type(error).__name__}: {error}"})
+                    if isinstance(error, httpx.TransportError):
+                        wait_for_server(client)  # Ollama itself died, e.g. killed out of memory
                     break
                 yield add_memory(to_measurement(base, result), client, model)
         unload(client, model)
@@ -105,9 +111,15 @@ def add_memory(m: Measurement, client: httpx.Client, model: Model) -> Measuremen
 
 
 def unload(client: httpx.Client, model: Model) -> None:
-    """Free the model's memory so the next model starts on an empty machine.
+    with contextlib.suppress(httpx.HTTPError):
+        client.post("/api/generate", json={"model": model.ollama_tag, "keep_alive": 0})
 
-    The response is not checked: a model that never loaded (out of memory) has nothing
-    to free, and that must not stop the rest of the run.
-    """
-    client.post("/api/generate", json={"model": model.ollama_tag, "keep_alive": 0})
+
+def wait_for_server(client: httpx.Client) -> None:
+    for _ in range(SERVER_RESTART_ATTEMPTS):
+        try:
+            client.get("/api/version").raise_for_status()
+        except httpx.HTTPError:
+            time.sleep(1)
+        else:
+            return

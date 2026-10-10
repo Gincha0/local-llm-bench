@@ -188,3 +188,56 @@ def test_only_the_measured_models_memory_counts() -> None:
         started_at=datetime(2026, 10, 6, tzinfo=UTC),
     )
     assert add_memory(base, client, CONFIG.models[0]).loaded_bytes is None
+
+
+class CrashingOllama(FakeOllama):
+    """FakeOllama that dies on the first request for `crash_model`, as when the kernel kills
+    it for running out of memory, then refuses connections until systemd restarts it after
+    `refusals` refused requests (or never, if `refusals` is None)."""
+
+    def __init__(self, crash_model: str, refusals: int | None) -> None:
+        super().__init__()
+        self.crash_model = crash_model
+        self.refusals = refusals
+        self.crashed = False
+        self.down = False
+        self.refused = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if self.down:
+            if self.refusals is not None and self.refused >= self.refusals:
+                self.down = False
+            else:
+                self.refused += 1
+                raise httpx.ConnectError("[Errno 111] Connection refused", request=request)
+        if request.url.path == "/api/version":
+            return httpx.Response(200, json={"version": "0.34.4"})
+        body = json.loads(request.content) if request.content else {}
+        if not self.crashed and "prompt" in body and body["model"] == self.crash_model:
+            self.crashed = self.down = True
+            raise httpx.RemoteProtocolError("Server disconnected", request=request)
+        return super().__call__(request)
+
+
+def two_regimes(models: int = 1) -> BenchConfig:
+    config = small_run(models)
+    return config.model_copy(
+        update={"regimes": [CONFIG.regime("short"), CONFIG.regime("structured")]}
+    )
+
+
+def test_run_waits_for_a_crashed_server_and_carries_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("local_llm_bench.runner.time.sleep", lambda _: None)
+    config = two_regimes()
+    results = run_against(CrashingOllama(config.models[0].ollama_tag, refusals=3), config)
+    crashed, *after = results
+    assert crashed.error is not None and "RemoteProtocolError" in crashed.error
+    assert [(m.regime_id, m.error) for m in after] == [("structured", None)] * 3
+
+
+def test_server_that_stays_down_ends_in_errors_not_a_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("local_llm_bench.runner.time.sleep", lambda _: None)
+    config = two_regimes(models=2)
+    results = run_against(CrashingOllama(config.models[0].ollama_tag, refusals=None), config)
+    assert len(results) == 4  # one failed request per model and regime, then the run ends
+    assert all(m.error is not None for m in results)
