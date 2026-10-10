@@ -17,9 +17,10 @@ import httpx
 from local_llm_bench.config import BenchConfig, Model, Regime, RunSettings, Tier, load_config
 from local_llm_bench.measure import stream_generate
 from local_llm_bench.results import Measurement
-from local_llm_bench.runner import build_payload, run_tier, to_measurement
+from local_llm_bench.runner import add_memory, build_payload, run_tier, to_measurement
 
 NS_PER_MS = 1_000_000
+BYTES_PER_GIB = 1024**3
 
 
 def plan(config: BenchConfig, tier_id: str) -> str:
@@ -49,7 +50,7 @@ def probe(run: RunSettings, tier: Tier, model: Model, regime: Regime, client: ht
     )
     prompt = regime.prompt_file.read_text(encoding="utf-8")
     result = stream_generate(client, build_payload(model, regime, run, tier, prompt))
-    m = to_measurement(base, result)
+    m = add_memory(to_measurement(base, result), client, model)
     return "\n".join(
         [
             f"{tier.id} / {model.id} / {regime.id}",
@@ -60,6 +61,7 @@ def probe(run: RunSettings, tier: Tier, model: Model, regime: Regime, client: ht
             f"prompt eval   {m.prompt_tokens} tokens ({m.prompt_cached_tokens} cached), "
             f"{_rate(m.prompt_tps)}",
             f"generation    {m.gen_tokens} tokens, {_rate(m.gen_tps)}",
+            f"memory        {_placement(m)}",
             "",
             result.answer.strip(),
         ]
@@ -71,7 +73,7 @@ def progress(m: Measurement) -> str:
     label = f"{m.tier_id} {m.model_id:<14} {m.regime_id:<12} {which:<6}"
     if m.error:
         return f"{label}  ERROR {m.error}"
-    return f"{label}  ttft {_ms(m.ttft_ns):>10}  gen {_rate(m.gen_tps)}"
+    return f"{label}  ttft {_ms(m.ttft_ns):>10}  gen {_rate(m.gen_tps)}  mem {_placement(m)}"
 
 
 def _ms(ns: int | None) -> str:
@@ -80,6 +82,14 @@ def _ms(ns: int | None) -> str:
 
 def _rate(tps: float | None) -> str:
     return "n/a" if tps is None else f"{tps:.1f} tok/s"
+
+
+def _placement(m: Measurement) -> str:
+    """Like the PROCESSOR column of `ollama ps`: how big, and how much of it is on the GPU."""
+    if not m.loaded_bytes or m.loaded_vram_bytes is None:
+        return "n/a"
+    on_gpu = m.loaded_vram_bytes / m.loaded_bytes
+    return f"{m.loaded_bytes / BYTES_PER_GIB:.1f} GiB, {on_gpu:.0%} GPU"
 
 
 def main(argv: list[str] | None = None) -> None:

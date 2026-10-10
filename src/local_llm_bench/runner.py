@@ -81,8 +81,27 @@ def run_tier(config: BenchConfig, tier: Tier, client: httpx.Client) -> Iterator[
                 except (httpx.HTTPError, OllamaError) as error:
                     yield base.model_copy(update={"error": f"{type(error).__name__}: {error}"})
                     break
-                yield to_measurement(base, result)
+                yield add_memory(to_measurement(base, result), client, model)
         unload(client, model)
+
+
+def add_memory(m: Measurement, client: httpx.Client, model: Model) -> Measurement:
+    try:
+        response = client.get("/api/ps")
+        response.raise_for_status()
+        loaded = response.json().get("models", [])
+    except (httpx.HTTPError, ValueError):
+        return m
+    for entry in loaded:
+        if entry.get("model") == model.ollama_tag:
+            return m.model_copy(
+                update={
+                    "loaded_bytes": entry.get("size"),
+                    "loaded_vram_bytes": entry.get("size_vram"),
+                    "loaded_context": entry.get("context_length"),
+                }
+            )
+    return m
 
 
 def unload(client: httpx.Client, model: Model) -> None:

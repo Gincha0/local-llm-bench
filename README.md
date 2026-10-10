@@ -26,7 +26,9 @@ Per model, per tier, per prompt regime:
 - **Time to first token**: client-side wall clock, streamed
 - **Prompt-eval and generation throughput**: tokens/s, reported separately
 - **Model load time**
-- **Peak memory**: RSS, and VRAM where there is a GPU
+- **Memory**: what Ollama holds for the loaded model and how much of it is in VRAM
+  (`/api/ps`, read after every request). Below 100 % GPU means the model was split
+  with system RAM: throughput drops and nothing reports an error
 - **Output quality**: small fixed rubric, stated below
 
 Raw durations and token counts are stored; rates are derived at report time.

@@ -9,7 +9,7 @@ import pytest
 from local_llm_bench.config import BenchConfig, load_config
 from local_llm_bench.measure import StreamResult
 from local_llm_bench.results import Measurement
-from local_llm_bench.runner import build_payload, run_tier, to_measurement
+from local_llm_bench.runner import add_memory, build_payload, run_tier, to_measurement
 
 CONFIG = load_config(Path(__file__).parent.parent / "config" / "bench.yaml")
 
@@ -87,22 +87,33 @@ def ndjson(*lines: dict[str, Any]) -> bytes:
 
 OK_STREAM = ndjson({"response": "Hi"}, {"done": True, "eval_count": 1, "eval_duration": 1})
 OUT_OF_MEMORY = b'{"error": "model requires more system memory than is available"}'
+LOADED = {"size": 4_000_000_000, "size_vram": 3_000_000_000, "context_length": 2048}
 
 
 class FakeOllama:
-    """Answers every generate request; models listed in `too_big` fail like an OOM load."""
+    """Answers every generate request; models listed in `too_big` fail like an OOM load.
 
-    def __init__(self, too_big: frozenset[str] = frozenset()) -> None:
+    /api/ps lists every model that answered and was not unloaded since, sized as LOADED.
+    """
+
+    def __init__(self, too_big: frozenset[str] = frozenset(), ps_status: int = 200) -> None:
         self.too_big = too_big
+        self.ps_status = ps_status
+        self.loaded: set[str] = set()
         self.bodies: list[dict[str, Any]] = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/ps":
+            models = [{"model": tag, **LOADED} for tag in sorted(self.loaded)]
+            return httpx.Response(self.ps_status, json={"models": models})
         body = json.loads(request.content)
         self.bodies.append(body)
         if "prompt" not in body:  # unload request
+            self.loaded.discard(body["model"])
             return httpx.Response(200, json={"done": True})
         if body["model"] in self.too_big:
             return httpx.Response(500, content=OUT_OF_MEMORY)
+        self.loaded.add(body["model"])
         return httpx.Response(200, content=OK_STREAM)
 
     def prompts(self) -> list[str]:
@@ -148,3 +159,32 @@ def test_model_that_does_not_fit_is_a_result_not_a_crash() -> None:
     failed, *rest = results
     assert failed.error is not None and "more system memory" in failed.error
     assert [m.model_id for m in rest] == [config.models[1].id] * 3  # next model still runs
+
+
+def test_memory_is_read_after_every_request() -> None:
+    results = run_against(FakeOllama(), small_run())
+    assert [(m.loaded_bytes, m.loaded_vram_bytes, m.loaded_context) for m in results] == [
+        (4_000_000_000, 3_000_000_000, 2048)
+    ] * 3
+
+
+def test_failed_memory_read_does_not_stop_the_run() -> None:
+    results = run_against(FakeOllama(ps_status=500), small_run())
+    assert len(results) == 3
+    assert all(m.error is None and m.loaded_bytes is None for m in results)
+
+
+def test_only_the_measured_models_memory_counts() -> None:
+    fake = FakeOllama()
+    fake.loaded.add("some-other-model:latest")
+    client = httpx.Client(transport=httpx.MockTransport(fake), base_url="http://ollama.test")
+    base = Measurement(
+        tier_id="T1",
+        model_id="qwen3-4b-q4",
+        regime_id="short",
+        rep=1,
+        warmup=False,
+        think=False,
+        started_at=datetime(2026, 10, 6, tzinfo=UTC),
+    )
+    assert add_memory(base, client, CONFIG.models[0]).loaded_bytes is None

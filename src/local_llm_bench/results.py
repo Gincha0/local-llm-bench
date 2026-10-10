@@ -44,6 +44,12 @@ class Measurement(BaseModel):
     peak_rss_mb: float | None = None
     peak_vram_mb: float | None = None
 
+    # what Ollama holds for the loaded model, from /api/ps after the request (bytes).
+    # Ollama's own figure (weights + KV cache + buffers), not measured by the OS.
+    loaded_bytes: int | None = None
+    loaded_vram_bytes: int | None = None  # below loaded_bytes = split with system RAM
+    loaded_context: int | None = None  # context window Ollama actually allocated
+
     answer: str | None = None  # kept for the quality rubric
     error: str | None = None
 
