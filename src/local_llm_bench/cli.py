@@ -4,7 +4,8 @@
 to the tier's Ollama and prints what was measured: a smoke test before a full run. `run`
 benchmarks every model and regime on one tier and appends each result to a JSONL file as
 it arrives, so an interrupted run keeps everything measured so far. Next to it goes an
-.env.json file: what machine, software and commit produced those results.
+.env.json file: what machine, software and commit produced those results. `report` turns
+the results files into a markdown table and two charts.
 """
 
 from __future__ import annotations
@@ -15,9 +16,11 @@ from pathlib import Path
 
 import httpx
 
+from local_llm_bench.charts import gen_speed_chart, memory_fit_chart
 from local_llm_bench.config import BenchConfig, Model, Regime, RunSettings, Tier, load_config
 from local_llm_bench.environment import capture
 from local_llm_bench.measure import stream_generate
+from local_llm_bench.report import load_runs, markdown, summarize
 from local_llm_bench.results import Measurement
 from local_llm_bench.runner import add_memory, build_payload, run_tier, to_measurement
 
@@ -94,6 +97,22 @@ def _placement(m: Measurement) -> str:
     return f"{m.loaded_bytes / BYTES_PER_GIB:.1f} GiB, {on_gpu:.0%} GPU"
 
 
+def report(config: BenchConfig, out_dir: Path) -> tuple[list[Path], list[Path]]:
+    """Returns the results files read (newest run per tier) and the files written."""
+    runs = load_runs(config.run.results_dir)
+    if not runs:
+        raise SystemExit(f"no results files in {config.run.results_dir}")
+    summaries = [s for run in runs.values() for s in summarize(config, run)]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    table = out_dir / "results.md"
+    speed = out_dir / "gen-speed.png"
+    memory = out_dir / "memory-fit.png"
+    table.write_text(markdown(config, runs, summaries), encoding="utf-8")
+    gen_speed_chart(config, summaries, speed)
+    memory_fit_chart(config, runs, summaries, memory)
+    return [run.path for run in runs.values()], [table, speed, memory]
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="llm-bench")
     parser.add_argument("--config", type=Path, default=Path("config/bench.yaml"))
@@ -106,6 +125,8 @@ def main(argv: list[str] | None = None) -> None:
     probe_cmd.add_argument("--regime", default="short")
     run_cmd = sub.add_parser("run", help="benchmark every model and regime on one tier")
     run_cmd.add_argument("--tier", required=True)
+    report_cmd = sub.add_parser("report", help="results files -> markdown table and charts")
+    report_cmd.add_argument("--out", type=Path, default=Path("report"))
 
     args = parser.parse_args(argv)
     config = load_config(args.config)
@@ -136,3 +157,6 @@ def main(argv: list[str] | None = None) -> None:
                 results.flush()
                 print(progress(m))
         print(f"results: {out} (+ {out.with_suffix('.env.json').name})")
+    elif args.command == "report":
+        read, written = report(config, args.out)
+        print("\n".join([f"read   {p}" for p in read] + [f"wrote  {p}" for p in written]))
