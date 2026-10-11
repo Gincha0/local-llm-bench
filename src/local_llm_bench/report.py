@@ -12,8 +12,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from local_llm_bench.config import BenchConfig
+from local_llm_bench.config import BenchConfig, Regime
 from local_llm_bench.environment import Environment
+from local_llm_bench.quality import json_matches
 from local_llm_bench.results import Measurement
 
 NS_PER_MS = 1_000_000
@@ -49,6 +50,7 @@ class Summary:
     gen_tps: float | None
     loaded_gib: float | None
     gpu_share: float | None  # share of the loaded bytes held in VRAM, 0 to 1
+    correct: int | None  # repetitions with the right answer, where the regime has one
     failure: str | None
 
 
@@ -69,14 +71,14 @@ def load_runs(results_dir: Path) -> dict[str, Run]:
 def summarize(config: BenchConfig, run: Run) -> list[Summary]:
     """One row per model and regime, in config order, including pairs that never ran."""
     return [
-        _summary(run, model.id, regime.id, config.run.repetitions)
+        _summary(run, model.id, regime, config.run.repetitions)
         for model in config.models
         for regime in config.regimes
     ]
 
 
-def _summary(run: Run, model_id: str, regime_id: str, planned: int) -> Summary:
-    group = [m for m in run.measurements if m.model_id == model_id and m.regime_id == regime_id]
+def _summary(run: Run, model_id: str, regime: Regime, planned: int) -> Summary:
+    group = [m for m in run.measurements if m.model_id == model_id and m.regime_id == regime.id]
     measured = [m for m in group if not m.warmup and m.error is None]
     errors = [m.error for m in group if m.error is not None]
     if errors:
@@ -85,13 +87,16 @@ def _summary(run: Run, model_id: str, regime_id: str, planned: int) -> Summary:
         failure = "not run"
     else:
         failure = None
+    correct = None
+    if regime.expected_json is not None:
+        correct = sum(json_matches(m.answer or "", regime.expected_json) for m in measured)
 
     ttft_ns = _median(m.ttft_ns for m in measured)
     loaded_bytes = _median(m.loaded_bytes for m in measured)
     return Summary(
         tier_id=run.env.tier_id,
         model_id=model_id,
-        regime_id=regime_id,
+        regime_id=regime.id,
         measured=len(measured),
         planned=planned,
         ttft_ms=None if ttft_ns is None else ttft_ns / NS_PER_MS,
@@ -99,6 +104,7 @@ def _summary(run: Run, model_id: str, regime_id: str, planned: int) -> Summary:
         gen_tps=_median(m.gen_tps for m in measured),
         loaded_gib=None if loaded_bytes is None else loaded_bytes / BYTES_PER_GIB,
         gpu_share=_median(_gpu_share(m) for m in measured),
+        correct=correct,
         failure=failure,
     )
 
@@ -131,7 +137,8 @@ def markdown(config: BenchConfig, runs: dict[str, Run], summaries: list[Summary]
         "Every number is the median over the measured repetitions; the warmup request is left",
         "out. TTFT is measured by the client, from sending the request to the first streamed",
         "token. Sizes are GiB (1024³ bytes). GPU is the share of Ollama's loaded memory held in",
-        "VRAM: below 100 % on a GPU tier means the model was split with system RAM.",
+        "VRAM: below 100 % on a GPU tier means the model was split with system RAM. Quality,",
+        "where a regime has one correct answer: the repetitions that returned exactly that answer.",
         "",
         "![Generation speed against model size](gen-speed.png)",
         "",
@@ -144,8 +151,8 @@ def markdown(config: BenchConfig, runs: dict[str, Run], summaries: list[Summary]
         lines += ["", f"## {tier.id} · {tier.name}", "", _machine(run), ""]
         lines += [
             "| Model | Regime | Measured | TTFT ms | Prompt tok/s | Gen tok/s | Loaded GiB "
-            "| GPU | Failure |",
-            "|---|---|---:|---:|---:|---:|---:|---:|---|",
+            "| GPU | Quality | Failure |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---|---|",
         ]
         lines += [_table_row(s) for s in summaries if s.tier_id == tier.id]
     return "\n".join(lines) + "\n"
@@ -181,9 +188,16 @@ def _table_row(s: Summary) -> str:
         _number(s.gen_tps),
         "–" if s.loaded_gib is None else f"{s.loaded_gib:.2f}",
         "–" if s.gpu_share is None else f"{s.gpu_share:.0%}",
+        _quality(s),
         (s.failure or "").replace("|", "\\|"),
     ]
     return "| " + " | ".join(cells) + " |"
+
+
+def _quality(s: Summary) -> str:
+    if s.correct is None or not s.measured:
+        return ""
+    return f"{s.correct}/{s.measured} correct"
 
 
 def _number(value: float | None) -> str:

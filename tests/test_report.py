@@ -89,7 +89,7 @@ def test_split_with_system_ram_shows_in_the_table() -> None:
     summary = row(run)
     assert summary.gpu_share == pytest.approx(0.8)
     table = markdown(CONFIG, {"T1": run}, summarize(CONFIG, run))
-    assert "| qwen3-0.6b-q4 | short | 1/10 | – | – | – | 10.00 | 80% |  |" in table
+    assert "| qwen3-0.6b-q4 | short | 1/10 | – | – | – | 10.00 | 80% |  |  |" in table
 
 
 def test_only_the_newest_run_of_a_tier_counts(tmp_path: Path) -> None:
@@ -100,3 +100,22 @@ def test_only_the_newest_run_of_a_tier_counts(tmp_path: Path) -> None:
     runs = load_runs(tmp_path)
     assert list(runs) == ["T1"]
     assert runs["T1"].path.name == "T1-newer.jsonl"
+
+
+def test_structured_answers_are_checked_on_every_repetition() -> None:
+    right = '{"device": "sw-core-02", "interface": "sfp-sfpplus3", '
+    right += '"event": "link-down", "timestamp": "2026-09-14T09:47:58Z"}'
+    wrong = right.replace("sfp-sfpplus3", "ether1")
+    run = run_of(
+        measurement(regime_id="structured", answer=right),
+        measurement(regime_id="structured", answer=right),
+        measurement(regime_id="structured", answer=wrong),
+    )
+    summary = row(run, regime_id="structured")
+    assert summary.correct == 2
+    table = markdown(CONFIG, {"T1": run}, summarize(CONFIG, run))
+    assert "| 2/3 correct |" in table
+
+
+def test_regime_without_one_right_answer_has_no_correct_count() -> None:
+    assert row(run_of(measurement(answer="A switch forwards frames."))).correct is None

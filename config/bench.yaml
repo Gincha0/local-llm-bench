@@ -118,3 +118,8 @@ regimes:
     prompt_file: prompts/structured.txt
     num_ctx: 2048
     json_output: true
+    expected_json:                       # the only correct answer; checked on every repetition
+      device: sw-core-02
+      interface: sfp-sfpplus3
+      event: link down
+      timestamp: "2026-09-14T09:47:58Z"  # quoted, or YAML reads it as a date

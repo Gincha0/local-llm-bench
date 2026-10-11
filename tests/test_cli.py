@@ -113,5 +113,7 @@ def test_report_writes_the_table_and_both_charts(tmp_path: Path) -> None:
     assert [p.name for p in written] == ["results.md", "gen-speed.png", "memory-fit.png"]
     assert all(p.read_bytes().startswith(b"\x89PNG") for p in written[1:])
     table = written[0].read_text(encoding="utf-8")
-    assert "| qwen3-8b-q8 | short | 1/10 | – | – | 10.0 | 10.00 | 70% |  |" in table
-    assert "| qwen3-8b-q8 | short | 0/10 | – | – | – | – | – | not enough memory to load |" in table
+    assert "| qwen3-8b-q8 | short | 1/10 | – | – | 10.0 | 10.00 | 70% |  |  |" in table
+    assert (
+        "| qwen3-8b-q8 | short | 0/10 | – | – | – | – | – |  | not enough memory to load |" in table
+    )

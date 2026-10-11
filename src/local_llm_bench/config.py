@@ -58,6 +58,8 @@ class Regime(Strict):
     prompt_file: Path
     num_ctx: int = Field(ge=512)
     json_output: bool = False
+    # The one correct answer, where there is one. Every repetition is checked against it.
+    expected_json: dict[str, str] | None = None
 
 
 class BenchConfig(Strict):
