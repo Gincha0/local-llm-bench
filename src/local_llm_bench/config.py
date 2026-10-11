@@ -36,6 +36,7 @@ class Model(Strict):
     params_b: float = Field(gt=0)
     quant: str
     ollama_tag: str
+    size_bytes: int = Field(gt=0)
 
 
 class Tier(Strict):
@@ -46,6 +47,7 @@ class Tier(Strict):
     gpu_offload: bool
     memory_gb: float = Field(gt=0)
     vram_gb: float | None = None
+    memory_bandwidth_gb_s: float | None = Field(default=None, gt=0)
     endpoint: str = "http://localhost:11434"
     notes: str = ""
 

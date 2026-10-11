@@ -15,47 +15,56 @@ run:
 
 # One entry = one concrete artifact you can `ollama pull`. Same model at two quants = two entries.
 # One family at four sizes, all dense (no mixture of experts): size and quantisation are the only variables.
+# size_bytes: the model file as listed in the Ollama registry (`ollama list` shows it rounded, in GB).
 models:
   - id: qwen3-0.6b-q4
     family: qwen3
     params_b: 0.6
     quant: Q4_K_M
     ollama_tag: qwen3:0.6b-q4_K_M
+    size_bytes: 522_640_096
   - id: qwen3-0.6b-q8
     family: qwen3
     params_b: 0.6
     quant: Q8_0
     ollama_tag: qwen3:0.6b-q8_0
+    size_bytes: 832_278_240
   - id: qwen3-1.7b-q4
     family: qwen3
     params_b: 1.7
     quant: Q4_K_M
     ollama_tag: qwen3:1.7b-q4_K_M
+    size_bytes: 1_359_279_776
   - id: qwen3-1.7b-q8
     family: qwen3
     params_b: 1.7
     quant: Q8_0
     ollama_tag: qwen3:1.7b-q8_0
+    size_bytes: 2_220_088_992
   - id: qwen3-4b-q4
     family: qwen3
     params_b: 4.0
     quant: Q4_K_M
     ollama_tag: qwen3:4b-q4_K_M
+    size_bytes: 2_620_774_592
   - id: qwen3-4b-q8
     family: qwen3
     params_b: 4.0
     quant: Q8_0
     ollama_tag: qwen3:4b-q8_0
+    size_bytes: 4_368_878_272
   - id: qwen3-8b-q4
     family: qwen3
     params_b: 8.0
     quant: Q4_K_M
     ollama_tag: qwen3:8b-q4_K_M
+    size_bytes: 5_225_374_496
   - id: qwen3-8b-q8
     family: qwen3
     params_b: 8.0
     quant: Q8_0
     ollama_tag: qwen3:8b-q8_0
+    size_bytes: 8_851_075_872
 
 # The harness runs ON the tier and talks to that machine's local Ollama.
 # Pick the tier at run time: `llm-bench plan --tier T4`.
@@ -67,6 +76,7 @@ tiers:
     gpu_offload: true
     memory_gb: 32
     vram_gb: 12
+    memory_bandwidth_gb_s: 504     # RTX 4070: 192-bit GDDR6X at 21 Gbps
     notes: Ryzen 7 9800X3D + RTX 4070 12 GB, CachyOS. The ceiling.
   - id: T2
     name: desktop-cpu
@@ -74,6 +84,7 @@ tiers:
     arch: x86_64
     gpu_offload: false      # same box, all layers on CPU: isolates the GPU offload benefit
     memory_gb: 32
+    memory_bandwidth_gb_s: 96      # dual-channel DDR5-6000
     notes: Same machine as T1, GPU disabled for inference.
   - id: T3
     name: laptop-gpu
@@ -82,6 +93,7 @@ tiers:
     gpu_offload: true
     memory_gb: 24
     vram_gb: 8
+    memory_bandwidth_gb_s: 256     # RTX 4060 Laptop: 128-bit GDDR6 at 16 Gbps
     notes: Lenovo LOQ 15, Ryzen 7 7435HS + RTX 4060 8 GB. Windows only; the thermal story.
   - id: T4
     name: vps-arm
@@ -89,6 +101,7 @@ tiers:
     arch: arm64
     gpu_offload: false
     memory_gb: 4
+    # no memory_bandwidth_gb_s: a VM on a shared host has no fixed figure
     notes: Hetzner CAX11, 2 vCPU shared. Non-x86, no GPU, 4 GB; where models stop fitting.
 
 regimes:
