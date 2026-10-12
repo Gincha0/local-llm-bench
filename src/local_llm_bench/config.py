@@ -26,7 +26,6 @@ class RunSettings(Strict):
     seed: int
     think: bool
     timeout_s: float = Field(gt=0)
-    sustained_minutes: float = Field(gt=0)
     results_dir: Path
 
 

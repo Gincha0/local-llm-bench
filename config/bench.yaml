@@ -10,7 +10,6 @@ run:
   seed: 42
   think: false            # reasoning models (qwen3) think by default; off, and recorded per result
   timeout_s: 600          # no data from Ollama for this long = recorded as an error (per read)
-  sustained_minutes: 10   # throttle test length (Fri 2 Oct)
   results_dir: results
 
 # One entry = one concrete artifact you can `ollama pull`. Same model at two quants = two entries.

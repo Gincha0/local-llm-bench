@@ -40,7 +40,8 @@ class Measurement(BaseModel):
     gen_tokens: int | None = None
     gen_ns: int | None = None
 
-    # memory; None where the tier cannot measure it
+    # never filled: peak memory sampling was replaced by the /api/ps reading below.
+    # Kept so that result files already written (these keys as null) still load.
     peak_rss_mb: float | None = None
     peak_vram_mb: float | None = None
 
