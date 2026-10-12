@@ -7,8 +7,7 @@ tiers, from a desktop GPU down to a 4 GB ARM cloud VM, and measures throughput, 
 memory and output correctness. Failed runs (out of memory, a crashed server) are recorded as
 results, not crashes: the point where a model stops fitting is one of the findings.
 
-> **Status:** three of four tiers measured (T1, T2, T4). T3, a Windows laptop, is next.
-> Hand-graded quality for the free-text prompts follows after that.
+> **Status:** all four tiers measured. Hand-graded quality for the free-text prompts is next.
 
 ## Device tiers
 
@@ -16,7 +15,7 @@ results, not crashes: the point where a model stops fitting is one of the findin
 |---|---|---|---|---|
 | T1 | Ryzen 7 9800X3D + RTX 4070 12 GB, 32 GB RAM | Linux / x86_64 | 504 GB/s (GDDR6X) | The ceiling |
 | T2 | Same machine, GPU not used | Linux / x86_64 | 96 GB/s (DDR5-6000, 2 channels) | What the GPU adds, isolated |
-| T3 | Laptop, Ryzen 7 7435HS + RTX 4060 8 GB, 24 GB RAM | Windows / x86_64 | 256 GB/s (GDDR6) | Less VRAM: where models start to split |
+| T3 | Laptop (Lenovo LOQ 15), Ryzen 7 7435HS + RTX 4060 Laptop 8 GB, 24 GB DDR5-4800 | Windows / x86_64 | 256 GB/s (GDDR6) | Less VRAM: where models start to split |
 | T4 | AWS EC2 t4g.medium (Graviton2), 2 vCPU, 4 GB | Linux / arm64 | none published (shared host) | Non-x86, no GPU; where models stop fitting |
 
 Models: one family at four sizes, Qwen3 0.6B / 1.7B / 4B / 8B, each as Q4_K_M and Q8_0: eight
@@ -38,6 +37,10 @@ the dashed lines. Measured as tokens/s × file size:
   fixed per-token work dominates, so halving the bytes with Q4 speeds the 8B model up 1.6×
   but the 0.6B model only 1.24×.
 - T2, the same machine on its CPU, reaches 62–82 GB/s of its RAM's 96 GB/s.
+- T3, the laptop, has 256 GB/s of VRAM bandwidth: 0.51× the 4070's. Every model of 2 GB or
+  more that fits in its 8 GB (1.7B Q8 to 8B Q4) generates at 0.48–0.56× T1's speed, an
+  effective 180–240 GB/s (70–95 %). The bandwidth ratio predicted the result on a third machine
+  and a second operating system.
 - **Equal bytes, equal speed:** 8B Q4 (4.9 GiB) generates 86.9 tok/s, 4B Q8 (4.1 GiB)
   96.4 tok/s. At the same memory budget, the choice between them is a quality question.
 
@@ -53,29 +56,40 @@ both 8B models do not load. Going from a 2k to an 8k context adds 0.7–0.95 GiB
 What fits is not necessarily usable: the 3,000-token prompt takes 50–56 s before the first
 token on 0.6B and 84–103 s on 1.7B.
 
-**4. On two ARM cores, Q8 beats Q4.** 0.6B generates 42.3 tok/s at Q8 and 36.8 at Q4; 1.7B
+**4. Split between VRAM and RAM, a model loses most of the GPU's advantage.** The 8B Q8 model
+(8.2 GiB file) does not fit in the laptop's 8 GB of VRAM. Ollama puts 60–67 % of it on the GPU,
+keeps the rest in system RAM, and reports no error: the hatched bar in the chart above. It
+generates 12.6 tok/s against 44.0 for 8B Q4, 3.5× slower for 1.7× the bytes, and only 1.6×
+faster than the desktop's CPU alone (T2, 7.8 tok/s). With the 8k context, 60 % fits and it
+drops to 8.1 tok/s, against T2's 7.1. Every token still reads the whole model, and the third in
+RAM is read at RAM speed: about 3 GB at the laptop's 77 GB/s (DDR5-4800, two channels) takes
+longer than the 6 GB in VRAM at 256 GB/s. Adding the two read times, at the efficiency each kind
+of memory reaches elsewhere in this benchmark, predicts 12–14 tok/s. Reading the prompt suffers
+less: time to first token for the ~3,000-token prompt is 2.8 s, against 29 s on T2.
+
+**5. On two ARM cores, Q8 beats Q4.** 0.6B generates 42.3 tok/s at Q8 and 36.8 at Q4; 1.7B
 16.2 and 15.2. The effective bandwidth is only 19–36 GB/s, so here the CPU, not memory, is the
 limit, and unpacking 4-bit K-quants most likely costs more compute than the bytes it saves.
 The bandwidth rule holds only while memory is the bottleneck.
 
-**5. At small sizes, quantisation decides correctness.** The `structured` prompt asks for four
+**6. At small sizes, quantisation decides correctness.** The `structured` prompt asks for four
 fields from a switch log as JSON; every repetition is checked against the one correct answer.
 
-| Model | T1 | T2 | T4 |
-|---|---|---|---|
-| qwen3-0.6b-q4 | 4/10 | 0/10 | 1/10 |
-| qwen3-0.6b-q8 | 0/10 | 0/10 | 0/10 |
-| qwen3-1.7b-q4 | 0/10 | 0/10 | 0/10 |
-| qwen3-1.7b-q8 | 10/10 | 10/10 | 10/10 |
-| qwen3-4b-q4 | 10/10 | 10/10 | 10/10 |
-| qwen3-4b-q8 | 10/10 | 10/10 | did not load |
-| qwen3-8b-q4 | 10/10 | 10/10 | did not load |
-| qwen3-8b-q8 | 10/10 | 10/10 | did not load |
+| Model | T1 | T2 | T3 | T4 |
+|---|---|---|---|---|
+| qwen3-0.6b-q4 | 4/10 | 0/10 | 0/10 | 1/10 |
+| qwen3-0.6b-q8 | 0/10 | 0/10 | 0/10 | 0/10 |
+| qwen3-1.7b-q4 | 0/10 | 0/10 | 0/10 | 0/10 |
+| qwen3-1.7b-q8 | 10/10 | 10/10 | 10/10 | 10/10 |
+| qwen3-4b-q4 | 10/10 | 10/10 | 10/10 | 10/10 |
+| qwen3-4b-q8 | 10/10 | 10/10 | 10/10 | did not load |
+| qwen3-8b-q4 | 10/10 | 10/10 | 10/10 | did not load |
+| qwen3-8b-q8 | 10/10 | 10/10 | 10/10 | did not load |
 
 1.7B is correct every time at Q8 and never at Q4. The most common wrong answer picks the
 link-up event on the next line of the log.
 
-**6. The prompt cache that killed the 4 GB VM.** Ollama 0.34.4 runs llama.cpp's
+**7. The prompt cache that killed the 4 GB VM.** Ollama 0.34.4 runs llama.cpp's
 `llama-server`, whose RAM prompt cache is on by default. Before each new request it saves the
 previous prompt's KV state (331.5 MiB for the long prompt). This benchmark makes every prompt
 unique (see Methodology), so the cache can never be reused and only grows. On T4 the kernel
@@ -135,16 +149,38 @@ version, and the harness commit, flagged if there were uncommitted changes.
 - T4 is a burstable VM on a shared host: run-to-run variance is higher, and there is no fixed
   bandwidth figure to compare against.
 - SMT is off on the T1/T2 machine (8 cores, 8 threads), set in firmware.
-- The desktop holds some VRAM for the display during T1.
+- The desktop holds some VRAM for the display during T1. The laptop's CPU has no integrated
+  graphics, so on T3 the RTX 4060 also drives the display and about 1 GiB of its VRAM is not
+  available to models.
+- T3 ran on Windows, where the run record has no RAM size and only a generic CPU name
+  (`AMD64 Family 25 Model 68`). The tier table above was filled in by hand from the laptop's
+  system information. The laptop was plugged in, in Lenovo's Performance power mode.
+- Unexplained: on T3 the small models slow down after the first two repetitions of a short
+  prompt. 0.6B Q4 generates about 255 tok/s for the first two, then about 125; on the long prompt
+  it holds 218. Models from 4B up are barely affected. Not investigated; logging the GPU clock
+  with `nvidia-smi` during the short repetitions would show whether the laptop lowers it between
+  short requests.
 - The client timeout applies to each read from the stream, not to the whole request.
 - One T4 measurement (0.6B Q4, long_context, repetition 2) overlapped a stray second run and
   has about 4 s extra TTFT; the median is unaffected.
-- Free-text answers are not graded yet, and T3 has not run yet.
+- Free-text answers are not graded yet.
 
 ## Running it
 
 Requires [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com/), with every
 `ollama_tag` in `config/bench.yaml` pulled on the machine being measured.
+
+Turn off `llama-server`'s RAM prompt cache before measuring (finding 7) by setting
+`LLAMA_ARG_CACHE_RAM=0` in Ollama's environment. On Linux, a systemd override:
+
+```ini
+# /etc/systemd/system/ollama.service.d/no-prompt-cache.conf
+[Service]
+Environment="LLAMA_ARG_CACHE_RAM=0"
+```
+
+On Windows, set the variable in a terminal and start `ollama serve` from it; the tray app did
+not pick it up. Either way, Ollama's log should then say `prompt cache is disabled`.
 
 ```sh
 uv sync
