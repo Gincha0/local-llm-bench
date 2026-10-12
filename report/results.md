@@ -75,6 +75,37 @@ AMD Ryzen 7 9800X3D 8-Core Processor · NVIDIA GeForce RTX 4070, 615.71.09, 1228
 | qwen3-8b-q8 | long_context | 10/10 | 29,405 | 99.8 | 7.12 | 9.58 | 0% |  |  |
 | qwen3-8b-q8 | structured | 10/10 | 2,407 | 108 | 7.63 | 8.62 | 0% | 10/10 correct |  |
 
+## T3 · laptop-gpu
+
+AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD · NVIDIA GeForce RTX 4060 Laptop GPU, 591.66, 8188 MiB · RAM unknown · Windows 11 · Ollama 0.34.4 · harness e83569f · started 2026-10-12 09:01 UTC · `results/T3-20261012T090108Z.jsonl`
+
+| Model | Regime | Measured | TTFT ms | Prompt tok/s | Gen tok/s | Loaded GiB | GPU | Quality | Failure |
+|---|---|---:|---:|---:|---:|---:|---:|---|---|
+| qwen3-0.6b-q4 | short | 10/10 | 37.2 | 1,125 | 128 | 0.65 | 100% |  |  |
+| qwen3-0.6b-q4 | long_context | 10/10 | 420 | 7,481 | 218 | 1.34 | 100% |  |  |
+| qwen3-0.6b-q4 | structured | 10/10 | 90.6 | 3,161 | 180 | 0.65 | 100% | 0/10 correct |  |
+| qwen3-0.6b-q8 | short | 10/10 | 36.7 | 1,151 | 131 | 0.86 | 100% |  |  |
+| qwen3-0.6b-q8 | long_context | 10/10 | 425 | 7,386 | 187 | 1.56 | 100% |  |  |
+| qwen3-0.6b-q8 | structured | 10/10 | 86.9 | 3,320 | 156 | 0.86 | 100% | 0/10 correct |  |
+| qwen3-1.7b-q4 | short | 10/10 | 48.6 | 813 | 104 | 1.36 | 100% |  |  |
+| qwen3-1.7b-q4 | long_context | 10/10 | 570 | 5,392 | 133 | 2.08 | 100% |  |  |
+| qwen3-1.7b-q4 | structured | 10/10 | 139 | 1,992 | 140 | 1.36 | 100% | 0/10 correct |  |
+| qwen3-1.7b-q8 | short | 10/10 | 42.7 | 952 | 98.9 | 2.02 | 100% |  |  |
+| qwen3-1.7b-q8 | long_context | 10/10 | 560 | 5,514 | 95.8 | 2.74 | 100% |  |  |
+| qwen3-1.7b-q8 | structured | 10/10 | 124 | 2,251 | 99.7 | 2.02 | 100% | 10/10 correct |  |
+| qwen3-4b-q4 | short | 10/10 | 75.4 | 489 | 69.0 | 2.79 | 100% |  |  |
+| qwen3-4b-q4 | long_context | 10/10 | 1,038 | 2,911 | 68.4 | 3.72 | 100% |  |  |
+| qwen3-4b-q4 | structured | 10/10 | 264 | 1,011 | 75.6 | 2.79 | 100% | 10/10 correct |  |
+| qwen3-4b-q8 | short | 10/10 | 80.6 | 454 | 49.1 | 4.42 | 100% |  |  |
+| qwen3-4b-q8 | long_context | 10/10 | 1,003 | 3,007 | 46.9 | 5.35 | 100% |  |  |
+| qwen3-4b-q8 | structured | 10/10 | 244 | 1,101 | 50.6 | 4.42 | 100% | 10/10 correct |  |
+| qwen3-8b-q4 | short | 10/10 | 123 | 292 | 44.0 | 4.91 | 100% |  |  |
+| qwen3-8b-q4 | long_context | 10/10 | 1,423 | 2,104 | 42.7 | 5.76 | 100% |  |  |
+| qwen3-8b-q4 | structured | 10/10 | 345 | 767 | 46.3 | 4.91 | 100% | 10/10 correct |  |
+| qwen3-8b-q8 | short | 10/10 | 266 | 128 | 12.6 | 8.66 | 67% |  |  |
+| qwen3-8b-q8 | long_context | 10/10 | 2,825 | 1,050 | 8.10 | 9.53 | 60% |  |  |
+| qwen3-8b-q8 | structured | 10/10 | 387 | 683 | 12.5 | 8.66 | 67% | 10/10 correct |  |
+
 ## T4 · vps-arm
 
 Neoverse-N1 · no NVIDIA GPU · 3.7 GiB RAM · Linux 6.17.0-1017-aws · Ollama 0.34.4 · harness e83569f · started 2026-10-10 20:07 UTC · `results/T4-20261010T200733Z.jsonl`
